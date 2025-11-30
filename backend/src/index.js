@@ -1,18 +1,23 @@
-import express from "express"
-import dotenv from "dotenv"
-import cors from "cors"
-import connectDB from "./lib/db.js";
-import authRoutes from "./routes/auth.route.js"
-import messageRoutes from "./routes/message.route.js";
-import cookieParser from "cookie-parser"
-import { app, server } from "./lib/socket.js"
+import express from "express";
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+
 import path from "path";
 
+import connectDB from "./lib/db.js";
+
+import authRoutes from "./routes/auth.route.js";
+import messageRoutes from "./routes/message.route.js";
+import { app, server } from "./lib/socket.js";
+
 dotenv.config();
-const PORT = process.env.PORT || 5001;
+
+const PORT = process.env.PORT;
 const __dirname = path.resolve();
 
-
+app.use(express.json());
+app.use(cookieParser());
 if (process.env.NODE_ENV === "development") {
   app.use(
     cors({
@@ -22,20 +27,22 @@ if (process.env.NODE_ENV === "development") {
   );
 }
 
-app.use(express.json());
-app.use(cookieParser());
-
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "/frontend/dist")));
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  app.get("/*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+  app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
 
-connectDB().then(() => {
-  server.listen(PORT, () => console.log("Server running on port", PORT));
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong!" });
 });
+
+connectDB()
+  .then(() => server.listen(PORT, () => console.log(`Server running on port ${PORT}`)))
+  .catch(err => console.error("DB connection failed:", err));
